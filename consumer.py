@@ -14,6 +14,6 @@ consumer = topic.get_balanced_consumer(
     auto_offset_reset=OffsetType.EARLIEST,
     zookeeper_connect='127.0.0.1:2181'
 )
-for message in consumer:
-    if message is not None:
-        print(message.offset, message.value)
+for data in consumer:
+    if data is not None:
+        print(data.offset, data.value)
