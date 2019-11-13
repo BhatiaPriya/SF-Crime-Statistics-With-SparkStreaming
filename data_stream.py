@@ -36,6 +36,8 @@ def run_spark_job(spark):
          .option("kafka.bootstrap.servers", "localhost:9092")\
          .option("subscribe", "service-calls")\
          .option("maxOffsetsPerTrigger", 200)\
+         .option("startingOffsets", "earliest")\
+         .option('failOnDataLoss', False)\
          .load()
 
     print("DF created")
@@ -58,7 +60,11 @@ def run_spark_job(spark):
                 psf.col('disposition'))
 
     # TODO get different types of original_crime_type_name in 60 minutes interval
-    counts_df = ( distinct_table.groupBy(distinct_table.original_crime_type_name, window(distinct_table.call_datetime, "1 hour")).count() ) 
+    counts_df = distinct_table\
+        .withWatermark('call_datetime', '20 seconds')\
+        .groupBy(distinct_table.original_crime_type_name, window(distinct_table.call_datetime, "1 hour"))\
+        .count()
+        
     counts_df.isStreaming
 
     ############### Testing counts #################
@@ -72,7 +78,10 @@ def run_spark_job(spark):
 
     # TODO use udf to convert timestamp to right format on a call_date_time column
     conv =  udf (lambda z: datetime.strptime(str(udf_convert_time(z)), '%Y-%m-%d %H:%M:00'), TimestampType())
-    converted_df = distinct_table.withColumn('datetimeFormat', conv(distinct_table['call_datetime'])).withColumn('desired_format', date_format(col('datetimeFormat'),'YYYYmmDDhh'))
+    converted_df = distinct_table\
+        .withWatermark('call_datetime', '20 seconds')\
+        .withColumn('datetimeFormat', conv(distinct_table['call_datetime']))\
+        .withColumn('desired_format', date_format(col('datetimeFormat'),'YYYYmmDDhh'))
  
     ############### Testing time #################
 #     query2 = (converted_df
@@ -98,7 +107,6 @@ def run_spark_job(spark):
 
     # TODO attach a ProgressReporter
     query.awaitTermination()
-
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
