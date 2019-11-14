@@ -94,8 +94,24 @@ def run_spark_job(spark):
        
 
     # TODO apply aggregations using windows function to see how many calls occurred in 2 day span
-    # calls_per_2_days =
+    calls_per_2_days = distinct_table\
+        .withWatermark("call_datetime", "20 seconds")\
+        .groupBy(
+            psf.window(distinct_table.call_datetime, "20 seconds", "5 seconds"),
+            distinct_table.original_crime_type_name
+            )\
+        .count()
 
+   ############### Testing calls #################
+
+#     query3 = (calls_per_2_days
+#          .writeStream
+#          .format("console")
+#          .outputMode("complete")
+#          .queryName('calls')
+#          .start()
+#          .awaitTermination())
+        
     # TODO write output stream
     query = distinct_table\
            .writeStream\
